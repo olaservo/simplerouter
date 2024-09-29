@@ -1,18 +1,33 @@
-import os
 from flask import Flask, request, jsonify
-from dotenv import load_dotenv
 import boto3
+import json
 
-load_dotenv()
+DEFAULT_SYSTEM_MESSAGE = "You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest. Your goal is to provide informative and substantive responses to queries while avoiding potential harms."
+
+NORDSTROM_TONE_MESSAGE = ""
+try:
+    with open('nordstrom_tone.md', 'r') as file:
+        NORDSTROM_TONE_MESSAGE = file.read()
+except:
+    print("Error loading nordstrom_tone.md")
+
+DEFAULT_REQUEST_PAYLOAD = {
+    "max_tokens": 4096,
+    "temperature": 0.0,
+    "top_p": 0.9,
+    "top_k": 250,
+    "stop_sequences": ["\n\nHuman:"],
+    "anthropic_version": "bedrock-2023-05-31",
+    "system": DEFAULT_SYSTEM_MESSAGE
+}
 
 app = Flask(__name__)
 
 # Initialize Bedrock client
-bedrock = boto3.client(
+session = boto3.Session(profile_name='nordstrom-federated')
+bedrock = session.client(
     service_name='bedrock-runtime',
-    region_name=os.getenv('AWS_REGION'),
-    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+    region_name='us-west-2'
 )
 
 @app.route('/v1/chat/completions', methods=['POST'])
@@ -20,44 +35,48 @@ def chat_completions():
     data = request.json
 
     # Extract parameters from request
-    model = data.get('model', 'anthropic.claude-v2')  # Default to Claude v2
+    model = data.get('model', 'anthropic.claude-3-5-sonnet')
     messages = data.get('messages', [])
-    max_tokens = data.get('max_tokens', 100)
-    temperature = data.get('temperature', 0.7)
+    max_tokens = data.get('max_tokens', 4096)
+    temperature = data.get('temperature', 0.0)
 
     # Map model to Bedrock model ID
     bedrock_model_id = map_to_bedrock_model(model)
 
-    # Prepare input for Bedrock
-    prompt = prepare_prompt(messages)
+    request_body = DEFAULT_REQUEST_PAYLOAD
+    # TODO: finalize request format from chat craft
+    request_body['messages'] = messages
+    request_body['max_tokens'] = int(max_tokens)
+    request_body['temperature'] = float(temperature)
 
     try:
         # Call Bedrock API
         response = bedrock.invoke_model(
             modelId=bedrock_model_id,
-            body=json.dumps({
-                "prompt": prompt,
-                "max_tokens_to_sample": max_tokens,
-                "temperature": temperature
-            })
+            contentType='application/json',
+            accept='application/json',
+            body=json.dumps(request_body)
         )
 
         # Process and return response
         result = json.loads(response['body'].read())
-        return jsonify({
-            "id": "chatcmpl-" + str(uuid.uuid4()),
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": model,
-            "choices": [{
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": result['completion']
-                },
-                "finish_reason": "stop"
-            }]
-        })
+
+        # TODO: finalize response format
+        # return jsonify({
+        #     "id": "chatcmpl-" + str(uuid.uuid4()),
+        #     "object": "chat.completion",
+        #     "created": int(time.time()),
+        #     "model": model,
+        #     "choices": [{
+        #         "index": 0,
+        #         "message": {
+        #             "role": "assistant",
+        #             "content": result['completion']
+        #         },
+        #         "finish_reason": "stop"
+        #     }]
+        # })
+        return jsonify(response['content'])
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -65,26 +84,12 @@ def chat_completions():
 def map_to_bedrock_model(model):
     # Map OpenRouter-style model names to Bedrock model IDs
     model_map = {
-        "anthropic.claude-v2": "anthropic.claude-v2",
-        "anthropic.claude-instant-v1": "anthropic.claude-instant-v1",
+        "anthropic.claude-3-5-sonnet": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "anthropic.claude-3-opus": "anthropic.claude-3-opus-20240229-v1:0",
+        "anthropic.claude-3-haiku": "anthropic.claude-3-haiku-20240307-v1:0",
         # Add more mappings as needed
     }
     return model_map.get(model, model)
-
-def prepare_prompt(messages):
-    # Convert messages to Anthropic-style prompt
-    prompt = ""
-    for message in messages:
-        role = message['role']
-        content = message['content']
-        if role == 'system':
-            prompt += f"Human: {content}\n\nAssistant: Understood. How can I assist you?\n\n"
-        elif role == 'user':
-            prompt += f"Human: {content}\n\n"
-        elif role == 'assistant':
-            prompt += f"Assistant: {content}\n\n"
-    prompt += "Assistant:"
-    return prompt
 
 if __name__ == '__main__':
     app.run(debug=True)
