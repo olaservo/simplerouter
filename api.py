@@ -81,6 +81,59 @@ def chat_completions():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/models', methods=['GET'])
+def list_models():
+    # TODO: tweak response to match what chatcraft needs
+    # also check limitations:
+    # Some fields (like tokenizer and instruct_type) are not available from Bedrock API, so they're set to default values.
+    # The modality is assumed to be "text->text" for all models, which may not be accurate for all Bedrock models.
+    # Pricing information is included, but Bedrock's pricing structure might differ from OpenRouter's.
+    # The is_moderated flag is set to False by default, as Bedrock doesn't provide this information.
+
+    # To improve this further, you might need:
+
+    # Documentation on Bedrock's model capabilities to accurately fill in fields like modality and tokenizer.
+    # Information on Bedrock's pricing structure to ensure the pricing data is accurate and complete.
+    # Details on any moderation or request limits Bedrock might impose.
+    response = bedrock.list_foundation_models()
+    
+    models = []
+    for model in response['modelSummaries']:
+        model_info = bedrock.get_foundation_model(modelIdentifier=model['modelId'])
+        
+        # Convert createdAt to Unix timestamp
+        created_at = int(model_info['modelDetails']['createdAt'].replace(tzinfo=timezone.utc).timestamp())
+        
+        model_data = {
+            "id": model['modelId'],
+            "name": model['modelName'],
+            "created": created_at,
+            "description": model_info['modelDetails'].get('description', ''),
+            "context_length": model_info['modelDetails'].get('maximumInputTokenCount', 0),
+            "architecture": {
+                "modality": "text->text",  # Assuming all Bedrock models are text-to-text
+                "tokenizer": "Unknown",  # Bedrock doesn't provide this info
+                "instruct_type": None  # Bedrock doesn't provide this info
+            },
+            "pricing": {
+                "prompt": model_info['inferenceConfiguration'].get('inputTokenPricePerUnit', 0),
+                "completion": model_info['inferenceConfiguration'].get('outputTokenPricePerUnit', 0),
+                "image": 0,  # Assuming no image processing capability
+                "request": 0  # Bedrock doesn't charge per request
+            },
+            "top_provider": {
+                "context_length": model_info['modelDetails'].get('maximumInputTokenCount', 0),
+                "max_completion_tokens": model_info['modelDetails'].get('maximumOutputTokenCount', None),
+                "is_moderated": False,  # Assuming no moderation by default
+            },
+            "per_request_limits": None  # Bedrock doesn't provide this info
+        }
+        models.append(model_data)
+    
+    return jsonify({"data": models})
+
+
 def map_to_bedrock_model(model):
     # Map OpenRouter-style model names to Bedrock model IDs
     model_map = {
