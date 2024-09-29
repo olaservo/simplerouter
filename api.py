@@ -96,8 +96,38 @@ def list_models():
     # Documentation on Bedrock's model capabilities to accurately fill in fields like modality and tokenizer.
     # Information on Bedrock's pricing structure to ensure the pricing data is accurate and complete.
     # Details on any moderation or request limits Bedrock might impose.
-    response = bedrock.list_foundation_models()
+    # Example of response from open router:
+    # {
+    #   "id": "anthropic/claude-3.5-sonnet",
+    #   "name": "Anthropic: Claude 3.5 Sonnet",
+    #   "created": 1718841600,
+    #   "description": "Claude 3.5 Sonnet delivers better-than-Opus capabilities, faster-than-Sonnet speeds, at the same Sonnet prices. Sonnet is particularly good at:\n\n- Coding: Autonomously writes, edits, and runs code with reasoning and troubleshooting\n- Data science: Augments human data science expertise; navigates unstructured data while using multiple tools for insights\n- Visual processing: excelling at interpreting charts, graphs, and images, accurately transcribing text to derive insights beyond just the text alone\n- Agentic tasks: exceptional tool use, making it great at agentic tasks (i.e. complex, multi-step problem solving tasks that require engaging with other systems)\n\n#multimodal",
+    #   "context_length": 200000,
+    #   "architecture": {
+    #     "modality": "text+image-\u003Etext",
+    #     "tokenizer": "Claude",
+    #     "instruct_type": null
+    #   },
+    #   "pricing": {
+    #     "prompt": "0.000003",
+    #     "completion": "0.000015",
+    #     "image": "0.0048",
+    #     "request": "0"
+    #   },
+    #   "top_provider": {
+    #     "context_length": 200000,
+    #     "max_completion_tokens": 8192,
+    #     "is_moderated": true
+    #   },
+    #   "per_request_limits": null
+    # }
     
+
+    # is moderated: Whether content filtering is applied by OpenRouter, per the model provider's Terms of Service.
+    # Developers should adhere to the terms of the model regardless.
+    # see: https://openrouter.ai/docs/models
+    
+    response = bedrock.list_foundation_models()
     models = []
     for model in response['modelSummaries']:
         model_info = bedrock.get_foundation_model(modelIdentifier=model['modelId'])
