@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import boto3
 import json
 
@@ -22,11 +23,12 @@ DEFAULT_REQUEST_PAYLOAD = {
 }
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 # Initialize Bedrock client
 session = boto3.Session(profile_name='nordstrom-federated')
 bedrock = session.client(
-    service_name='bedrock-runtime',
+    service_name='bedrock',
     region_name='us-west-2'
 )
 
@@ -129,38 +131,37 @@ def list_models():
     
     response = bedrock.list_foundation_models()
     models = []
+    # Commenting out keys that don't exist in the provided response structure
     for model in response['modelSummaries']:
-        model_info = bedrock.get_foundation_model(modelIdentifier=model['modelId'])
-        
-        # Convert createdAt to Unix timestamp
-        created_at = int(model_info['modelDetails']['createdAt'].replace(tzinfo=timezone.utc).timestamp())
-        
+        input_modalities = '+'.join(model['inputModalities'])
+        output_modalities = '+'.join(model['outputModalities'])
+        modality = f"{input_modalities}->{output_modalities}".lower()
         model_data = {
             "id": model['modelId'],
             "name": model['modelName'],
-            "created": created_at,
-            "description": model_info['modelDetails'].get('description', ''),
-            "context_length": model_info['modelDetails'].get('maximumInputTokenCount', 0),
+            # "created": created_at,  # No 'createdAt' key in the provided structure
+            # "description": model_info['modelDetails'].get('description', ''),  # No 'description' key in the provided structure
+            "context_length": model.get('maximumInputTokenCount', 0),
             "architecture": {
-                "modality": "text->text",  # Assuming all Bedrock models are text-to-text
-                "tokenizer": "Unknown",  # Bedrock doesn't provide this info
-                "instruct_type": None  # Bedrock doesn't provide this info
+                "modality": modality,
+                "tokenizer": "Unknown",  # Assuming default value
+                "instruct_type": None  # Assuming default value
             },
             "pricing": {
-                "prompt": model_info['inferenceConfiguration'].get('inputTokenPricePerUnit', 0),
-                "completion": model_info['inferenceConfiguration'].get('outputTokenPricePerUnit', 0),
-                "image": 0,  # Assuming no image processing capability
-                "request": 0  # Bedrock doesn't charge per request
+                "prompt": model.get('inputTokenPricePerUnit', 0),
+                "completion": model.get('outputTokenPricePerUnit', 0),
+                "image": 0,  # Assuming default value
+                "request": 0  # Assuming default value
             },
             "top_provider": {
-                "context_length": model_info['modelDetails'].get('maximumInputTokenCount', 0),
-                "max_completion_tokens": model_info['modelDetails'].get('maximumOutputTokenCount', None),
-                "is_moderated": False,  # Assuming no moderation by default
+                "context_length": model.get('maximumInputTokenCount', 0),
+                "max_completion_tokens": model.get('maximumOutputTokenCount', None),
+                "is_moderated": False,  # Assuming default value
             },
-            "per_request_limits": None  # Bedrock doesn't provide this info
+            "per_request_limits": None  # Assuming default value
         }
         models.append(model_data)
-    
+
     return jsonify({"data": models})
 
 
