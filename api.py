@@ -1,10 +1,9 @@
 import uuid
-from datetime import time
+import time
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import boto3
-import json
 
 DEFAULT_MODEL_ID = 'anthropic.claude-3-5-sonnet-20240620-v1:0t'
 
@@ -26,8 +25,12 @@ bedrock = session.client(
     service_name='bedrock',
     region_name='us-west-2'
 )
+bedrock_runtime = session.client(
+    service_name='bedrock-runtime',
+    region_name='us-west-2'
+)
 
-@app.route('/v1/chat/completions', methods=['POST'])
+@app.route('/chat/completions', methods=['POST'])
 def chat_completions():
     data = request.json
 
@@ -37,22 +40,26 @@ def chat_completions():
     temperature = data.get('temperature', DEFAULT_REQUEST_PAYLOAD['temperature'])
     request_messages = data.get('messages', [])
 
-    request_body = DEFAULT_REQUEST_PAYLOAD
     messages = []
     system = []
     for message in request_messages:
         if message['role'] == 'system':
             system = [{'text': message['content']}]
         else:
-            messages.append(message)
+            messages.append({
+                'role': message['role'],
+                'content': [{'text': message['content']}]
+            })
 
     # TODO: add any guardrails
     # TODO: add file upload support
 
     try:
         # Call Bedrock API
-        response = bedrock.converse(
-            modelId=model,
+        # TODO: get stream version working
+        model_id = ':'.join(model.split(':')[:2])
+        response = bedrock_runtime.converse(
+            modelId=model_id,
             messages=messages,
             inferenceConfig={
                 'maxTokens': int(max_tokens),
@@ -61,32 +68,30 @@ def chat_completions():
                 'stopSequences': ['\n\nHuman:'],
             },
             system=system,
-            additional_model_fields = {'top_k': int(DEFAULT_REQUEST_PAYLOAD['top_k'])}
+            additionalModelRequestFields = {'top_k': int(DEFAULT_REQUEST_PAYLOAD['top_k'])}
         )
 
-        # Process and return response
-        result = json.loads(response['body'].read())
-
-        input_tokens = result['output']['usage']['inputTokens']
-        output_tokens = result['output']['usage']['outputTokens']
+        input_tokens = response['usage']['inputTokens']
+        output_tokens = response['usage']['outputTokens']
 
         # TODO: finalize response format
         return jsonify({
             'id': 'chatcmpl-' + str(uuid.uuid4()),
             'created': int(time.time()),
             'model': model,
+            'object': 'chat.completion',
             'choices': [{
                 'message': {
-                    'role': result['output']['message']['role'],
-                    'content': result['content'][0]['text']
+                    'role': response['output']['message']['role'],
+                    'content': response['output']['message']['content'][0]['text']
                 },
-                'finish_reason': result['output']['stopReason']
+                'finish_reason': response['stopReason']
             }],
             'usage': {
                 'prompt_tokens': input_tokens,
                 'completion_tokens': output_tokens,
                 'total_tokens': input_tokens + output_tokens,
-            }
+            },
         })
 
     except Exception as e:
