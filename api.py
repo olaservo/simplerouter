@@ -1,11 +1,13 @@
 import uuid
 import time
-
-from flask import Flask, request, jsonify
+import json
+from flask import Flask, request, Response, stream_with_context
 from flask_cors import CORS
 import boto3
 
-DEFAULT_MODEL_ID = 'anthropic.claude-3-5-sonnet-20240620-v1:0t'
+DEFAULT_MODEL_ID = 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+
+DEFAULT_PRICING_STRUCTURE = 'ON_DEMAND'
 
 DEFAULT_REQUEST_PAYLOAD = {
     'max_tokens': 4096,
@@ -21,10 +23,7 @@ CORS(app, resources={r'/*': {'origins': 'http://localhost:5173'}})
 
 # Initialize Bedrock client
 session = boto3.Session(profile_name='nordstrom-federated')
-bedrock = session.client(
-    service_name='bedrock',
-    region_name='us-west-2'
-)
+
 bedrock_runtime = session.client(
     service_name='bedrock-runtime',
     region_name='us-west-2'
@@ -33,12 +32,11 @@ bedrock_runtime = session.client(
 @app.route('/chat/completions', methods=['POST'])
 def chat_completions():
     data = request.json
-
-    # Extract parameters from request
     model = data.get('model', DEFAULT_MODEL_ID)
     max_tokens = data.get('max_tokens', DEFAULT_REQUEST_PAYLOAD['max_tokens'])
     temperature = data.get('temperature', DEFAULT_REQUEST_PAYLOAD['temperature'])
     request_messages = data.get('messages', [])
+    stream = data.get('stream', False)
 
     messages = []
     system = []
@@ -51,52 +49,101 @@ def chat_completions():
                 'content': [{'text': message['content']}]
             })
 
-    # TODO: add any guardrails
-    # TODO: add file upload support
-
     try:
-        # Call Bedrock API
-        # TODO: get stream version working
-        model_id = ':'.join(model.split(':')[:2])
-        response = bedrock_runtime.converse(
-            modelId=model_id,
-            messages=messages,
-            inferenceConfig={
-                'maxTokens': int(max_tokens),
-                'temperature': float(temperature),
-                'topP': float(DEFAULT_REQUEST_PAYLOAD['top_p']),
-                'stopSequences': ['\n\nHuman:'],
-            },
-            system=system,
-            additionalModelRequestFields = {'top_k': int(DEFAULT_REQUEST_PAYLOAD['top_k'])}
-        )
-
-        input_tokens = response['usage']['inputTokens']
-        output_tokens = response['usage']['outputTokens']
-
-        # TODO: finalize response format
-        return jsonify({
-            'id': 'chatcmpl-' + str(uuid.uuid4()),
-            'created': int(time.time()),
-            'model': model,
-            'object': 'chat.completion',
-            'choices': [{
-                'message': {
-                    'role': response['output']['message']['role'],
-                    'content': response['output']['message']['content'][0]['text']
+        if stream:
+            response = bedrock_runtime.converse_stream(
+                modelId=model,
+                messages=messages,
+                inferenceConfig={
+                    'maxTokens': int(max_tokens),
+                    'temperature': float(temperature),
+                    'topP': float(DEFAULT_REQUEST_PAYLOAD['top_p']),
+                    'stopSequences': ['\n\nHuman:'],
                 },
-                'finish_reason': response['stopReason']
-            }],
-            'usage': {
-                'prompt_tokens': input_tokens,
-                'completion_tokens': output_tokens,
-                'total_tokens': input_tokens + output_tokens,
-            },
-        })
+                system=system,
+                additionalModelRequestFields={'top_k': int(DEFAULT_REQUEST_PAYLOAD['top_k'])}
+            )
+            return Response(stream_with_context(stream_response(response, model)), content_type='text/event-stream')
+        else:
+            response = bedrock_runtime.converse(
+                modelId=model,
+                messages=messages,
+                inferenceConfig={
+                    'maxTokens': int(max_tokens),
+                    'temperature': float(temperature),
+                    'topP': float(DEFAULT_REQUEST_PAYLOAD['top_p']),
+                    'stopSequences': ['\n\nHuman:'],
+                },
+                system=system,
+                additionalModelRequestFields={'top_k': int(DEFAULT_REQUEST_PAYLOAD['top_k'])}
+            )
+            return jsonify(process_non_stream_response(response, model))
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+def stream_response(response, model):
+    for event in response['stream']:
+        if 'contentBlockDelta' in event:
+            delta = event['contentBlockDelta']['delta']
+            if 'text' in delta:
+                chunk = {
+                    'id': f'chatcmpl-{str(uuid.uuid4())}',
+                    'object': 'chat.completion.chunk',
+                    'created': int(time.time()),
+                    'model': model,
+                    'choices': [{
+                        'index': 0,
+                        'delta': {
+                            'content': delta['text']
+                        },
+                        'finish_reason': None
+                    }]
+                }
+                yield f'data: {json.dumps(chunk)}\n\n'
+        elif 'messageStop' in event:
+            chunk = {
+                'id': f'chatcmpl-{str(uuid.uuid4())}',
+                'object': 'chat.completion.chunk',
+                'created': int(time.time()),
+                'model': model,
+                'choices': [{
+                    'index': 0,
+                    'delta': {},
+                    'finish_reason': event['messageStop']['stopReason']
+                }]
+            }
+            yield f'data: {json.dumps(chunk)}\n\n'
+            yield 'data: [DONE]\n\n'
+
+
+def process_non_stream_response(response, model):
+    input_tokens = response['usage']['inputTokens']
+    output_tokens = response['usage']['outputTokens']
+    return {
+        'id': 'chatcmpl-' + str(uuid.uuid4()),
+        'created': int(time.time()),
+        'model': model,
+        'object': 'chat.completion',
+        'choices': [{
+            'message': {
+                'role': response['output']['message']['role'],
+                'content': response['output']['message']['content'][0]['text']
+            },
+            'finish_reason': response['stopReason']
+        }],
+        'usage': {
+            'prompt_tokens': input_tokens,
+            'completion_tokens': output_tokens,
+            'total_tokens': input_tokens + output_tokens,
+        },
+    }
+
+bedrock = session.client(
+    service_name='bedrock',
+    region_name='us-west-2'
+)
 
 @app.route('/models', methods=['GET'])
 def list_models():
@@ -131,9 +178,9 @@ def list_models():
     #   'per_request_limits': null
     # }
     
-    response = bedrock.list_foundation_models()
+    # TODO: add option to support provisioned
+    response = bedrock.list_foundation_models(byInferenceType=DEFAULT_PRICING_STRUCTURE)
     models = []
-    # Commenting out keys that don't exist in the provided response structure
     for model in response['modelSummaries']:
          # TODO: add support for other models
         if not model['modelId'].startswith('anthropic'):
