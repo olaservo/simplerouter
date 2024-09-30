@@ -58,10 +58,10 @@ def chat_completions():
                 'maxTokens': int(max_tokens),
                 'temperature': float(temperature),
                 'topP': float(DEFAULT_REQUEST_PAYLOAD['top_p']),
-                #'topK': int(DEFAULT_REQUEST_PAYLOAD['top_k']),
                 'stopSequences': ['\n\nHuman:'],
             },
-            system=system
+            system=system,
+            additional_model_fields = {'top_k': int(DEFAULT_REQUEST_PAYLOAD['top_k'])}
         )
 
         # Process and return response
