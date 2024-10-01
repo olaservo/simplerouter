@@ -1,0 +1,158 @@
+{
+  "data": [
+    {
+      "architecture": {
+        "instruct_type": null,
+        "modality": "text->text",
+        "tokenizer": "Claude"
+      },
+      "context_length": 100000,
+      "id": "anthropic.claude-instant-v1",
+      "name": "Claude Instant",
+      "per_request_limits": null,
+      "pricing": {
+        "completion": 0.8,
+        "image": 0,
+        "prompt": 0.2,
+        "request": 0
+      },
+      "top_provider": {
+        "context_length": 100000,
+        "is_moderated": false,
+        "max_completion_tokens": 2048
+      }
+    },
+    {
+      "architecture": {
+        "instruct_type": null,
+        "modality": "text->text",
+        "tokenizer": "Claude"
+      },
+      "context_length": 200000,
+      "id": "anthropic.claude-v2:1",
+      "name": "Claude",
+      "per_request_limits": null,
+      "pricing": {
+        "completion": 20,
+        "image": 0,
+        "prompt": 10,
+        "request": 0
+      },
+      "top_provider": {
+        "context_length": 200000,
+        "is_moderated": false,
+        "max_completion_tokens": 4096
+      }
+    },
+    {
+      "architecture": {
+        "instruct_type": null,
+        "modality": "text->text",
+        "tokenizer": "Claude"
+      },
+      "context_length": 200000,
+      "id": "anthropic.claude-v2",
+      "name": "Claude",
+      "per_request_limits": null,
+      "pricing": {
+        "completion": 20,
+        "image": 0,
+        "prompt": 10,
+        "request": 0
+      },
+      "top_provider": {
+        "context_length": 200000,
+        "is_moderated": false,
+        "max_completion_tokens": 4096
+      }
+    },
+    {
+      "architecture": {
+        "instruct_type": null,
+        "modality": "text+image->text",
+        "tokenizer": "Claude"
+      },
+      "context_length": 200000,
+      "id": "anthropic.claude-3-sonnet-20240229-v1:0",
+      "name": "Claude 3 Sonnet",
+      "per_request_limits": null,
+      "pricing": {
+        "completion": 20,
+        "image": 0,
+        "prompt": 0.5,
+        "request": 0
+      },
+      "top_provider": {
+        "context_length": 200000,
+        "is_moderated": false,
+        "max_completion_tokens": 4096
+      }
+    },
+    {
+      "architecture": {
+        "instruct_type": null,
+        "modality": "text+image->text",
+        "tokenizer": "Claude"
+      },
+      "context_length": 200000,
+      "id": "anthropic.claude-3-haiku-20240307-v1:0",
+      "name": "Claude 3 Haiku",
+      "per_request_limits": null,
+      "pricing": {
+        "completion": 0.25,
+        "image": 0,
+        "prompt": 0.125,
+        "request": 0
+      },
+      "top_provider": {
+        "context_length": 200000,
+        "is_moderated": false,
+        "max_completion_tokens": 4096
+      }
+    },
+    {
+      "architecture": {
+        "instruct_type": null,
+        "modality": "text+image->text",
+        "tokenizer": "Claude"
+      },
+      "context_length": 200000,
+      "id": "anthropic.claude-3-opus-20240229-v1:0",
+      "name": "Claude 3 Opus",
+      "per_request_limits": null,
+      "pricing": {
+        "completion": 80,
+        "image": 0,
+        "prompt": 20,
+        "request": 0
+      },
+      "top_provider": {
+        "context_length": 200000,
+        "is_moderated": false,
+        "max_completion_tokens": 4096
+      }
+    },
+    {
+      "architecture": {
+        "instruct_type": null,
+        "modality": "text+image->text",
+        "tokenizer": "Claude"
+      },
+      "context_length": 200000,
+      "id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "name": "Claude 3.5 Sonnet",
+      "per_request_limits": null,
+      "pricing": {
+        "completion": 20,
+        "image": 0,
+        "prompt": 0.5,
+        "request": 0
+      },
+      "top_provider": {
+        "context_length": 200000,
+        "is_moderated": false,
+        "max_completion_tokens": 8192
+      }
+    }
+  ]
+}

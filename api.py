@@ -18,6 +18,10 @@ DEFAULT_REQUEST_PAYLOAD = {
     'anthropic_version': 'bedrock-2023-05-31',
 }
 
+# Load model details from JSON file
+with open('aws_model_details.json', 'r') as f:
+    model_details = json.load(f)['data']
+
 app = Flask(__name__)
 CORS(app, resources={r'/*': {'origins': 'http://localhost:5173'}})
 
@@ -178,40 +182,43 @@ def list_models():
     #   'per_request_limits': null
     # }
     
-    # TODO: add option to support provisioned
+    # TODO: add option to support provisioned?
     response = bedrock.list_foundation_models(byInferenceType=DEFAULT_PRICING_STRUCTURE)
     models = []
     for model in response['modelSummaries']:
          # TODO: add support for other models
+         # (will be mostly the same calling pattern but might support different additional fields)
         if not model['modelId'].startswith('anthropic'):
             continue
         input_modalities = '+'.join(model['inputModalities'])
         output_modalities = '+'.join(model['outputModalities'])
         modality = f'{input_modalities}->{output_modalities}'.lower()
+
+        # Find corresponding model details from JSON for anything we can't get from the list_foundation_models call
+        model_detail = next((item for item in model_details if item['id'] == model['modelId']), {})
+
         model_data = {
-            'id': model['modelId'],
-            'name': model['modelName'],
-            # 'created': created_at,  # No 'createdAt' key in the provided structure #TODO
-            # 'description': model_info['modelDetails'].get('description', ''),  # No 'description' key in the provided structure #TODO
-            'context_length': model.get('maximumInputTokenCount', 0), #TODO
-            'architecture': {
-                'modality': modality,
-                'tokenizer': 'Unknown',  #TODO
-                'instruct_type': None  #TODO
-            },
-            'pricing': {
-                'prompt': model.get('inputTokenPricePerUnit', 0), #TODO
-                'completion': model.get('outputTokenPricePerUnit', 0), #TODO
-                'image': 0,  #TODO
-                'request': 0  #TODO
-            },
-            'top_provider': {
-                'context_length': model.get('maximumInputTokenCount', 0), #TODO
-                'max_completion_tokens': model.get('maximumOutputTokenCount', None), #TODO
-                'is_moderated': False,  #TODO
-            },
-            'per_request_limits': None  #TODO
-        }
+             'id': model['modelId'],
+             'name': model['modelName'],
+             'context_length': model.get('maximumInputTokenCount', model_detail.get('context_length', 0)),
+             'architecture': {
+                 'modality': modality,
+                 'tokenizer': model_detail.get('architecture', {}).get('tokenizer', 'Unknown'),
+                 'instruct_type': model_detail.get('architecture', {}).get('instruct_type', None)
+             },
+             'pricing': {
+                 'prompt': model.get('inputTokenPricePerUnit', model_detail.get('pricing', {}).get('prompt', 0)),
+                 'completion': model.get('outputTokenPricePerUnit', model_detail.get('pricing', {}).get('completion', 0)),
+                 'image': model_detail.get('pricing', {}).get('image', 0),
+                 'request': model_detail.get('pricing', {}).get('request', 0)
+             },
+             'top_provider': {
+                 'context_length': model.get('maximumInputTokenCount', model_detail.get('top_provider', {}).get('context_length', 0)),
+                 'max_completion_tokens': model.get('maximumOutputTokenCount', model_detail.get('top_provider', {}).get('max_completion_tokens', None)),
+                 'is_moderated': model_detail.get('top_provider', {}).get('is_moderated', False)
+             },
+             'per_request_limits': model_detail.get('per_request_limits', None)
+         }
         models.append(model_data)
 
     return jsonify({'data': models})

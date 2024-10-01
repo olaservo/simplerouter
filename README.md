@@ -9,7 +9,7 @@ It is intended to be used together with [ChatCraft](https://github.com/tarasglek
 ## Supported cloud providers and models
 
 * AWS Bedrock
-  * Anthropic models (On-Demand Only)
+  * [Anthropic models](https://aws.amazon.com/bedrock/claude/) (On-Demand Only)
 
 Note that not all features are enabled yet, including specifying content filters, tracing, etc.
 
@@ -31,3 +31,14 @@ Note that not all features are enabled yet, including specifying content filters
 ### Setup for ChatCraft UI
 
 Refer to the [ChatCraft README](https://github.com/tarasglek/chatcraft.org) for instructions on how to set up the ChatCraft UI.
+
+Once you have the UI running, go to Settings and add the following provider details:
+
+* Name: Localhost
+* Host: http://127.0.0.1:5000/
+* API key: dummy_key (this can be anything that isn't blank)
+
+Then hit Save.  Now you should be able to select Localhost as a provider in the chat UI.  If you see any errors, take a look at the terminal output for the simplerouter Flask app.
+
+Note that CORS is configured to allow requests from http://localhost:5173 which is the default port for ChatCraft.  If you run this from a different port, you will need to update the CORS configuration in `api.py`.
+
