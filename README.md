@@ -6,7 +6,7 @@ Primary motivation is to avoid sharing data to a third-party service while allow
 
 It is intended to be used together with [ChatCraft](https://github.com/tarasglek/chatcraft.org) as a client, but it can be used with any client that can send and receive JSON messages over a WebSocket connection.
 
-## Supported cloud providers and models
+## Supported cloud providers and models so far
 
 * AWS Bedrock
   * [Anthropic models](https://aws.amazon.com/bedrock/claude/) (On-Demand Only)
@@ -25,8 +25,8 @@ Note that not all features are enabled yet, including specifying content filters
 
 ### Running the Flask app
 1. Log into aws (details not included here) and select sandbox role #TODO
-2. Start the Flask app: #TODO test this
-   1. `flask run`
+2. Start the Flask app by running the following command in your terminal:
+   1. `source venv/bin/activate; export FLASK_APP=api.py; flask run`
 
 ### Setup for ChatCraft UI
 
@@ -40,5 +40,11 @@ Once you have the UI running, go to Settings and add the following provider deta
 
 Then hit Save.  Now you should be able to select Localhost as a provider in the chat UI.  If you see any errors, take a look at the terminal output for the simplerouter Flask app.
 
+To see token count as you chat, go to Settings >> Custom Settings and enable "Track and Display Token Count and Cost".  Cost is not currently displayed for most models, but token count should be accurate and cost estimation is coming soon.
+
 Note that CORS is configured to allow requests from http://localhost:5173 which is the default port for ChatCraft.  If you run this from a different port, you will need to update the CORS configuration in `api.py`.
+
+### Setup for Open WebUI
+
+[Open WebUI](https://openwebui.com/) is another option that people like using as a universal interface for AI.  It has not been tested with this app yet, but it should work with potentially some minor tweaks.  If you get this working please let Ola know, and we can create docs on how to set it up.
 
