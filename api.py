@@ -151,38 +151,6 @@ bedrock = session.client(
 
 @app.route('/models', methods=['GET'])
 def list_models():
-    # TODO: tweak response to match what chatcraft needs
-    # To improve this further, you might need:
-    # Documentation on Bedrock's model capabilities to accurately fill in fields like modality and tokenizer.
-    # Information on Bedrock's pricing structure to ensure the pricing data is accurate and complete.
-    # Details on any moderation or request limits Bedrock might impose.
-    # Example of response from open router:
-    # {
-    #   'id': 'anthropic/claude-3.5-sonnet',
-    #   'name': 'Anthropic: Claude 3.5 Sonnet',
-    #   'created': 1718841600,
-    #   'description': 'Claude 3.5 Sonnet delivers better-than-Opus capabilities, faster-than-Sonnet speeds, at the same Sonnet prices. Sonnet is particularly good at:\n\n- Coding: Autonomously writes, edits, and runs code with reasoning and troubleshooting\n- Data science: Augments human data science expertise; navigates unstructured data while using multiple tools for insights\n- Visual processing: excelling at interpreting charts, graphs, and images, accurately transcribing text to derive insights beyond just the text alone\n- Agentic tasks: exceptional tool use, making it great at agentic tasks (i.e. complex, multi-step problem solving tasks that require engaging with other systems)\n\n#multimodal',
-    #   'context_length': 200000,
-    #   'architecture': {
-    #     'modality': 'text+image-\u003Etext',
-    #     'tokenizer': 'Claude',
-    #     'instruct_type': null
-    #   },
-    #   'pricing': {
-    #     'prompt': '0.000003',
-    #     'completion': '0.000015',
-    #     'image': '0.0048',
-    #     'request': '0'
-    #   },
-    #   'top_provider': {
-    #     'context_length': 200000,
-    #     'max_completion_tokens': 8192,
-    #     'is_moderated': true
-    #   },
-    #   'per_request_limits': null
-    # }
-    
-    # TODO: add option to support provisioned?
     response = bedrock.list_foundation_models(byInferenceType=DEFAULT_PRICING_STRUCTURE)
     models = []
     for model in response['modelSummaries']:
@@ -194,7 +162,7 @@ def list_models():
         output_modalities = '+'.join(model['outputModalities'])
         modality = f'{input_modalities}->{output_modalities}'.lower()
 
-        # Find corresponding model details from JSON for anything we can't get from the list_foundation_models call
+        # Find corresponding model details from JSON for anything we can't get from the list_foundation_models call yet
         model_detail = next((item for item in model_details if item['id'] == model['modelId']), {})
 
         model_data = {
