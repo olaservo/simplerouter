@@ -2,6 +2,7 @@ import uuid
 import time
 import json
 import os
+import traceback
 from flask import Flask, request, Response, stream_with_context, jsonify
 from flask_cors import CORS
 import boto3
@@ -45,38 +46,38 @@ bedrock_runtime = session.client(
 
 @app.route('/chat/completions', methods=['POST'])
 def chat_completions():
-    data = request.form.to_dict()
-    model = data.get('model', DEFAULT_MODEL_ID)
-    max_tokens = int(data.get('max_tokens', DEFAULT_REQUEST_PAYLOAD['max_tokens']))
-    temperature = float(data.get('temperature', DEFAULT_REQUEST_PAYLOAD['temperature']))
-    request_messages = json.loads(data.get('messages', '[]'))
-    stream = data.get('stream', 'false').lower() == 'true'
-
-    messages = []
-    system = []
-    for message in request_messages:
-        if message['role'] == 'system':
-            system = [{'text': message['content']}]
-        else:
-            messages.append({
-                'role': message['role'],
-                'content': [{'text': message['content']}]
-            })
-
-    # Handle file upload
-    if 'file' in request.files:
-        file = request.files['file']
-        if file and file.filename:
-            filename = secure_filename(file.filename)
-            file_content = file.read().decode('utf-8')
-            messages.append({
-                'role': 'user',
-                'content': [
-                    {'text': f"Here's the content of the file {filename}:\n\n{file_content}\n\nPlease analyze this file content."}
-                ]
-            })
-
     try:
+        data = request.form.to_dict()
+        model = data.get('model', DEFAULT_MODEL_ID)
+        max_tokens = int(data.get('max_tokens', DEFAULT_REQUEST_PAYLOAD['max_tokens']))
+        temperature = float(data.get('temperature', DEFAULT_REQUEST_PAYLOAD['temperature']))
+        request_messages = json.loads(data.get('messages', '[]'))
+        stream = data.get('stream', 'false').lower() == 'true'
+
+        messages = []
+        system = []
+        for message in request_messages:
+            if message['role'] == 'system':
+                system = [{'text': message['content']}]
+            else:
+                messages.append({
+                    'role': message['role'],
+                    'content': [{'text': message['content']}]
+                })
+
+        # Handle file upload
+        if 'file' in request.files:
+            file = request.files['file']
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                file_content = file.read().decode('utf-8')
+                messages.append({
+                    'role': 'user',
+                    'content': [
+                        {'text': f"Here's the content of the file {filename}:\n\n{file_content}\n\nPlease analyze this file content."}
+                    ]
+                })
+
         if stream:
             response = bedrock_runtime.converse_stream(
                 modelId=model,
@@ -107,8 +108,10 @@ def chat_completions():
             return jsonify(process_non_stream_response(response, model))
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        error_message = f"An error occurred: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        print(error_message)  # Log the error
+        return jsonify({'error': error_message}), 500
+    
 
 def stream_response(response, model):
     for event in response['stream']:

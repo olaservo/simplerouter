@@ -2,7 +2,8 @@ import json
 import pytest
 from flask import url_for
 from io import BytesIO
-from simplerouter.api import app
+from unittest.mock import patch, MagicMock
+from simplerouter.api import app, bedrock_runtime
 
 @pytest.fixture
 def client():
@@ -10,7 +11,38 @@ def client():
     with app.test_client() as client:
         yield client
 
-def test_chat_completion_without_file(client):
+@pytest.fixture
+def mock_bedrock_runtime():
+    with patch('simplerouter.api.bedrock_runtime') as mock_client:
+        yield mock_client
+
+def load_mock_data(file_path):
+    with open(file_path, 'r') as file:
+        return json.load(file)
+
+@pytest.fixture
+def mock_list_models_response():
+    return load_mock_data('tests/mocks/aws_model_summaries_mock.json')
+
+@pytest.fixture
+def mock_invoke_model_response():
+    return {
+        'output': {
+            'message': {
+                'role': 'assistant',
+                'content': [{'text': 'This is a mocked response from the Bedrock API.'}]
+            }
+        },
+        'usage': {
+            'inputTokens': 10,
+            'outputTokens': 20
+        },
+        'stopReason': 'COMPLETE'
+    }
+
+def test_chat_completion_without_file(client, mock_bedrock_runtime, mock_invoke_model_response):
+    mock_bedrock_runtime.converse.return_value = mock_invoke_model_response
+    
     data = {
         'model': 'anthropic.claude-3-5-sonnet-20240620-v1:0',
         'max_tokens': 100,
@@ -26,8 +58,11 @@ def test_chat_completion_without_file(client):
     assert len(result['choices']) > 0
     assert 'message' in result['choices'][0]
     assert 'content' in result['choices'][0]['message']
+    assert 'mocked response' in result['choices'][0]['message']['content']
 
-def test_chat_completion_with_file(client):
+def test_chat_completion_with_file(client, mock_bedrock_runtime, mock_invoke_model_response):
+    mock_bedrock_runtime.converse.return_value = mock_invoke_model_response
+    
     data = {
         'model': 'anthropic.claude-3-5-sonnet-20240620-v1:0',
         'max_tokens': 100,
@@ -46,9 +81,11 @@ def test_chat_completion_with_file(client):
     assert len(result['choices']) > 0
     assert 'message' in result['choices'][0]
     assert 'content' in result['choices'][0]['message']
-    assert "test file content" in result['choices'][0]['message']['content'].lower()
+    assert 'mocked response' in result['choices'][0]['message']['content']
 
-def test_chat_completion_error_handling(client):
+def test_chat_completion_error_handling(client, mock_bedrock_runtime):
+    mock_bedrock_runtime.converse.side_effect = Exception("Invalid model")
+    
     data = {
         'model': 'invalid_model',
         'max_tokens': 100,
@@ -62,7 +99,10 @@ def test_chat_completion_error_handling(client):
     result = json.loads(response.data)
     assert 'error' in result
 
-def test_list_models(client):
+@patch('simplerouter.api.bedrock')
+def test_list_models(mock_bedrock, client, mock_list_models_response):
+    mock_bedrock.list_foundation_models.return_value = mock_list_models_response
+    
     response = client.get('/models')
     assert response.status_code == 200
     result = json.loads(response.data)
