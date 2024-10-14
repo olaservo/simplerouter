@@ -17,16 +17,22 @@ Note that not all features are enabled yet, including specifying content filters
 
 ### One-time setup for Flask app
 1. Clone this repository
-2. Create virtual environment and install dependencies:
-   1. `python3 -m venv venv`
-   2. `source venv/bin/activate`
-   3. `pip install -r requirements.txt`
-3. Set up .env file with the following variables: Set the profile name in .env file #TODO test this and see if you need it
+2. Install Poetry (if not already installed):
+   ```
+   pipx install poetry
+   ```
+3. Install project dependencies:
+   ```
+   poetry install
+   ```
+4. Set up .env file with the following variables: Set the profile name in .env file #TODO test this and see if you need it
 
 ### Running the Flask app
 1. Log into aws (details not included here) and select sandbox role #TODO
 2. Start the Flask app by running the following command in your terminal:
-   1. `source venv/bin/activate; export FLASK_APP=api.py; flask run`
+   ```
+   poetry run flask --app simplerouter.api run
+   ```
 
 ### Setup for ChatCraft UI
 
@@ -42,9 +48,8 @@ Then hit Save.  Now you should be able to select Localhost as a provider in the 
 
 To see token count as you chat, go to Settings >> Custom Settings and enable "Track and Display Token Count and Cost".  Cost is not currently displayed for most models, but token count should be accurate and cost estimation is coming soon.
 
-Note that CORS is configured to allow requests from http://localhost:5173 which is the default port for ChatCraft.  If you run this from a different port, you will need to update the CORS configuration in `api.py`.
+Note that CORS is configured to allow requests from http://localhost:5173 which is the default port for ChatCraft.  If you run this from a different port, you will need to update the CORS configuration in `simplerouter/api.py`.
 
 ### Setup for Open WebUI
 
 [Open WebUI](https://openwebui.com/) is another option that people like using as a universal interface for AI.  It has not been tested with this app yet, but it should work with potentially some minor tweaks.  If you get this working please let Ola know, and we can create docs on how to set it up.
-

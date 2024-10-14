@@ -1,9 +1,11 @@
 import uuid
 import time
 import json
+import os
 from flask import Flask, request, Response, stream_with_context, jsonify
 from flask_cors import CORS
 import boto3
+from botocore.exceptions import ProfileNotFound
 
 DEFAULT_MODEL_ID = 'anthropic.claude-3-5-sonnet-20240620-v1:0'
 
@@ -19,14 +21,21 @@ DEFAULT_REQUEST_PAYLOAD = {
 }
 
 # Load model details from JSON file
-with open('aws_model_details.json', 'r') as f:
+current_dir = os.path.dirname(os.path.abspath(__file__))
+json_path = os.path.join(current_dir, 'provider_model_details.json')
+with open(json_path, 'r') as f:
     model_details = json.load(f)['data']
 
 app = Flask(__name__)
+# ChatCraft runs on port 5173 by default
 CORS(app, resources={r'/*': {'origins': 'http://localhost:5173'}})
 
 # Initialize Bedrock client
-session = boto3.Session(profile_name='nordstrom-federated')
+try:
+    session = boto3.Session(profile_name='nordstrom-federated')
+except ProfileNotFound:
+    print("Warning: 'nordstrom-federated' profile not found. Using default profile.")
+    session = boto3.Session()
 
 bedrock_runtime = session.client(
     service_name='bedrock-runtime',
