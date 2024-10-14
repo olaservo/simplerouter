@@ -1,0 +1,28 @@
+{
+  "modelSummaries": [
+    {
+      "modelArn": "arn:aws:bedrock:us-west-2::foundation-model/amazon.titan-tg1-large",
+      "modelId": "amazon.titan-tg1-large",
+      "modelName": "Titan Text Large",
+      "providerName": "Amazon",
+      "inputModalities": ["TEXT"],
+      "outputModalities": ["TEXT"],
+      "responseStreamingSupported": true,
+      "customizationsSupported": [],
+      "inferenceTypesSupported": ["ON_DEMAND"],
+      "modelLifecycle": {"status": "ACTIVE"}
+    },
+    {
+      "modelArn": "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-v2",
+      "modelId": "anthropic.claude-v2",
+      "modelName": "Claude",
+      "providerName": "Anthropic",
+      "inputModalities": ["TEXT"],
+      "outputModalities": ["TEXT"],
+      "responseStreamingSupported": true,
+      "customizationsSupported": [],
+      "inferenceTypesSupported": ["ON_DEMAND"],
+      "modelLifecycle": {"status": "ACTIVE"}
+    }
+  ]
+}
