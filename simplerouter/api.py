@@ -26,6 +26,12 @@ json_path = os.path.join(current_dir, 'provider_model_details.json')
 with open(json_path, 'r') as f:
     model_details = json.load(f)['data']
 
+# Load allowed providers from config file
+config_dir = os.path.join(os.path.dirname(current_dir), 'config')
+allowed_providers_path = os.path.join(config_dir, 'allowed_providers.json')
+with open(allowed_providers_path, 'r') as f:
+    allowed_providers = json.load(f)['allowed_providers']
+
 app = Flask(__name__)
 # ChatCraft runs on port 5173 by default
 CORS(app, resources={r'/*': {'origins': 'http://localhost:5173'}})
@@ -158,9 +164,8 @@ def list_models():
     response = bedrock.list_foundation_models(byInferenceType=DEFAULT_PRICING_STRUCTURE)
     models = []
     for model in response['modelSummaries']:
-         # TODO: add support for other models
-         # (will be mostly the same calling pattern but might support different additional fields)
-        if not model['modelId'].startswith('anthropic'):
+        # Check if the model's provider is in the allowed_providers list
+        if not any(model['modelId'].startswith(provider) for provider in allowed_providers):
             continue
         input_modalities = '+'.join(model['inputModalities'])
         output_modalities = '+'.join(model['outputModalities'])
@@ -169,6 +174,7 @@ def list_models():
         # Find corresponding model details from JSON for anything we can't get from the list_foundation_models call yet
         model_detail = next((item for item in model_details if item['id'] == model['modelId']), {})
 
+        # Translate to OpenRouter format
         model_data = {
              'id': model['modelId'],
              'name': model['modelName'],
