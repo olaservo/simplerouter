@@ -7,6 +7,7 @@ from flask import Flask, request, Response, stream_with_context, jsonify
 from flask_cors import CORS
 import boto3
 from werkzeug.utils import secure_filename
+from .utils import calculate_costs
 
 DEFAULT_MODEL_ID = 'anthropic.claude-3-5-sonnet-20240620-v1:0'
 
@@ -145,12 +146,36 @@ def stream_response(response, model):
                 }]
             }
             yield f'data: {json.dumps(chunk)}\n\n'
+        elif 'metadata' in event:
+            usage = event['metadata'].get('usage', {})
+            input_tokens = usage.get('inputTokens', 0)
+            output_tokens = usage.get('outputTokens', 0)
+            costs = calculate_costs(model, input_tokens, output_tokens)
+            chunk = {
+                'id': f'chatcmpl-{str(uuid.uuid4())}',
+                'object': 'chat.completion.chunk',
+                'created': int(time.time()),
+                'model': model,
+                'choices': [{
+                    'index': 0,
+                    'delta': {},
+                    'finish_reason': None
+                }],
+                'usage': {
+                    'prompt_tokens': input_tokens,
+                    'completion_tokens': output_tokens,
+                    'total_tokens': usage.get('totalTokens', 0)
+                },
+                'costs': costs
+            }
+            yield f'data: {json.dumps(chunk)}\n\n'
             yield 'data: [DONE]\n\n'
 
 
 def process_non_stream_response(response, model):
     input_tokens = response['usage']['inputTokens']
     output_tokens = response['usage']['outputTokens']
+    costs = calculate_costs(model, input_tokens, output_tokens)
     return {
         'id': 'chatcmpl-' + str(uuid.uuid4()),
         'created': int(time.time()),
@@ -168,6 +193,7 @@ def process_non_stream_response(response, model):
             'completion_tokens': output_tokens,
             'total_tokens': input_tokens + output_tokens,
         },
+        'costs': costs
     }
 
 bedrock = session.client(
