@@ -5,7 +5,6 @@ import os
 from flask import Flask, request, Response, stream_with_context, jsonify
 from flask_cors import CORS
 import boto3
-from botocore.exceptions import ProfileNotFound
 
 DEFAULT_MODEL_ID = 'anthropic.claude-3-5-sonnet-20240620-v1:0'
 
