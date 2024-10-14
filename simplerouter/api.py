@@ -31,12 +31,7 @@ app = Flask(__name__)
 CORS(app, resources={r'/*': {'origins': 'http://localhost:5173'}})
 
 # Initialize Bedrock client
-try:
-    session = boto3.Session(profile_name='nordstrom-federated')
-except ProfileNotFound:
-    print("Warning: 'nordstrom-federated' profile not found. Using default profile.")
-    session = boto3.Session()
-
+session = boto3.Session()
 bedrock_runtime = session.client(
     service_name='bedrock-runtime',
     region_name='us-west-2'
